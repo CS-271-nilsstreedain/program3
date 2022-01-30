@@ -21,28 +21,30 @@ TITLE Program 2     (prog2.asm)
 INCLUDE Irvine32.inc
 
 ; constants
-RANGE_MIN = 1
-RANGE_MAX = 46
+RANGE_MIN = -100
+RANGE_MAX = -1
 
 .data
 	; interface strings
-	prog_title	BYTE		"Fibonacci Numbers", 13, 10, "Programmed by Nils Streedain", 13, 10, 0
-	extra		BYTE		"**EC: Displays the numbers in aligned columns.", 13, 10, 0
+	prog_title	BYTE		"Welcome to the Integer Accumulator by Nils Streedain", 13, 10, 0
+	;extra		BYTE		"**EC: Calculate and display the average as a floating-point number, rounded to the nearest .001.", 13, 10, 0
 	prompt_1	BYTE		"What is your name? ", 0
 	greeting	BYTE		"Hello, ", 0
-	prompt_2a	BYTE		"Enter the number of Fibonacci terms to be displayed.", 13, 10, "Provide the number as an integer in the range [1 .. 46].", 13, 10, 0
-	prompt_2b	BYTE		"How many Fibonacci terms do you want? ", 0
-	error		BYTE		"Out of range. Enter a number in [1 .. 46]", 13, 10, 0
-	tab_char	BYTE		9, 0
-	bye			BYTE		13, 10, "Results certified by Nils Streedain.", 13, 10, "Goodbye, ", 0
-
-	; user inputs
-	username	BYTE		33 DUP(0)
-	num_fibs	DWORD		?
+	prompt_2a	BYTE		"Please enter numbers in [-100, -1].", 13, 10, "Enter a non-negative number when you are finished to see results.", 13, 10, 0
+	prompt_2b	BYTE		"Enter number: ", 0
+	error		BYTE		"Invalid number, please enter numbers in [-100, -1].", 13, 10, 0
+	zeroAdded	BYTE		"No valid negative numbers were input by the user.", 0
 	
+	bye_1		BYTE		"You entered ", 0
+	bye_2		BYTE		" valid numbers.", 13, 10, "The sum of your valid numbers is ", 0
+	bye_3		BYTE		13, 10, "The rounded average is ", 0
+	bye_4		BYTE		13, 10, "Thank you for playing Integer Accumulator!", 13, 10, "Goodbye, ", 0
+
 	; program variables
-	fib_1		DWORD		0
-	fib_2		DWORD		0
+	username	BYTE		33 DUP(0)
+	curr		DWORD		?
+	quantity	DWORD		0
+	sum			DWORD		0
 
 .code
 main PROC
@@ -51,8 +53,8 @@ main PROC
 introduction:
 	mov		edx, OFFSET prog_title
 	call	WriteString
-	mov		edx, OFFSET extra
-	call	WriteString
+	;mov		edx, OFFSET extra
+	;call	WriteString
 
 ; Asks for and stores user's name. Also greets user using the name.
 getUserInfo:
@@ -72,88 +74,84 @@ getUserInfo:
 	call	WriteString
 	call	Crlf
 
-; Tells the user to enter the number of fibs they'd like printed.
+; Tells the user to enter numbers between -100 & -1.
 displayinstructions:
 	mov		edx, OFFSET prompt_2a
 	call	WriteString
 	
-; Prompts for number of fibs in the range 1-46. If the input is out of range, the program jumps to outOfRange.
-fibPrompt:
-	; prompts for number of fibs in range
+; Prompts for number in the range -100 & -1. If the input is below, the program jumps to outOfRange, if above, jumps to endProgram.
+numPrompt:
+	; prompts for number to add to sum
 	mov		edx, OFFSET prompt_2b
 	call	WriteString
 	call	ReadInt
+	mov		curr, eax
 
 	; check if input is out of range (ReadInt already stores input in eax)
 	cmp		eax, RANGE_MIN
 	jl		outOfRange
 	cmp		eax, RANGE_MAX
-	jg		outOfRange
+	jg		endProgram
 	
-	; if not outOfRange, store num_fibs & then displayFibs
-	mov		num_fibs, eax
-	jmp		displayFibs
+	; if not outOfRange, add input to sum, increase quantity, & loop numPrompt
+	mov		eax, curr
+	add		eax, sum
+	mov		sum, eax
+	inc		quantity
+	jmp		numPrompt
 	
-; Gives the user an out of range error & then jumps to fibPrompt to get another user input.
+; Gives the user an out of range error & then jumps to numPrompt to get another user input.
 outOfRange:
 	mov		edx, OFFSET error
 	call	WriteString
-	jmp		fibPrompt
+	jmp		numPrompt
 
-; Starts a counted loop to print out a certain number of Fibonacci numbers.
-displayFibs:
-	mov		eax, fib_1			; eax stores the current fib number
-	mov		ecx, num_fibs		; ecx stores the number of fibs to find, decreased after each loop
+; Prints final quantity, sum, average & gives the user a salutation before exiting the program.
+endProgram:
+	; if zero numbers were added, give message & end program.
+	mov		eax, quantity
+	cmp		eax, 0
+	je		noneAdded
 
-; Calculates the next fibonacci number
-calcNthFib:
-	mov		eax, fib_1			; resets eax to the curr fib
-	cmp		eax, 0				; if eax is 0, it is increased
-	je		incEax				; (this is for the first two iterations where 1 is printed)
-
-	add		eax, fib_2			; calcs the next fib by adding fib_2 to curr fib
-
-; Moves fib_1 -> fib_2 & eax -> fib_1. Also prints curr fib.
-swapAndPrint:
-	; swap fib_1 & fib_2 & set fib_1 to new fib in eax
-	mov		ebx, fib_1
-	mov		fib_2, ebx
-	mov		fib_1, eax
-
-	call	WriteDec			; print curr fib number
-
-	; insert tab to create columns
-	mov		edx, OFFSET tab_char
+	; find and print quantity of numbers input
+	mov		edx, OFFSET bye_1
 	call	WriteString
+	mov		eax, quantity
+	call	WriteDec
 	
-	; Find the remainder of the curent num_fibs count over three. This is done so every four fibs, a new line is printed.
-	mov		ebx, 3
+	; find and print sum of numbers input
+	mov		edx, OFFSET bye_2
+	call	WriteString
+	mov		eax, sum
+	call	WriteInt
+	
+	; find and print average of numbers input
+	mov		edx, OFFSET bye_3
+	call	WriteString
+	mov		eax, sum
+	mov		ebx, quantity
 	cdq
-	div		ebx
-	cmp		edx, 0
-	jne		noNewLine
-	call	Crlf
+	idiv	ebx
+	call	WriteInt
+;	fild	sum
+;	fidiv	quantity
+;	call	WriteFloat
+	jmp		goodbye
 
-; Jump point for when no new line is needed to create a new column.
-noNewLine:
-	loop	calcNthFib			; restart the loop for the next number (decreases ecx by 1)
-	jmp		goodbye				; once ecx = 0, jump to goodbye
+; if no valid negative numbers are input by the user, this is called to tell the user
+noneAdded:
+	mov		edx, OFFSET zeroAdded
+	call	WriteString
 
-; Increments ebx for the first 2 iterations of calcNthFib. Then jumps to swapAndPrint to skip the addition of fib 1&2.
-incEax:
-	inc		eax
-	jmp		swapAndPrint
-
-; Gives the user a salutation & exits the program.
+; tells the user goodbye & prints their name
 goodbye:
-	mov		edx, OFFSET bye
+	; say goodbye to the user
+	mov		edx, OFFSET bye_4
 	call	WriteString
 	mov		edx, OFFSET username
 	call	WriteString
 
 	exit	; exit to operating system
 main ENDP
-
-; (insert additional procedures here)
 
 END main
