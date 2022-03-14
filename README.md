@@ -1,4 +1,4 @@
-# Program 3
+# Integer Accumulator
 
 ## Objectives
 1. Implementing data validation
